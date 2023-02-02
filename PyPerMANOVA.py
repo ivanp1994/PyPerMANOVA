@@ -279,8 +279,6 @@ def calculating_F_stat(grouping, valid_distance, effsize=False):
     """
     # group the distance matrix
     permuted_dismatrix = valid_distance.copy()
-    #square the distance matrix
-    permuted_dismatrix = permuted_dismatrix.values * permuted_dismatrix.values
     permuted_dismatrix.columns = grouping
     permuted_dismatrix.index = grouping
 
@@ -561,7 +559,6 @@ def perMANOVA_via_constructor(matrix, permutations=999):
     pc = _permanova_constructor(matrix, permutations=permutations)
     return(pc)
 
-# %% WORKFLOW FUNCTION
 def permutational_analysis(data, mapping, column=None, **kwargs):
     """
     Main level function that incorporates every step needed to
@@ -600,6 +597,8 @@ def permutational_analysis(data, mapping, column=None, **kwargs):
     column : string, optional
         Value of column when mapping is of pd.DataFrame type. The default is None.
     **kwargs :
+        dist : Bool, optional, set to False
+            If set to True, then the provided matrix is already a distance matrix
         by : string, optional
             What orientation is taken to produce a distance matrix.
             Can be either via column, or via row. Default is column.
@@ -651,16 +650,17 @@ def permutational_analysis(data, mapping, column=None, **kwargs):
     input_matrix = data.copy()
 
     # process kwargs
+    is_distance = kwargs.pop("dist",False)
     by = kwargs.pop("by", "column")
     norm = kwargs.pop("norm", "row")
     metric = kwargs.pop("metric", "euclidean")
     permutations = kwargs.pop("permutations", 999)
 
     # check what orientation of matrix will be taken
-    if by in ["column", 1, "col", "c","columns"]:
+    if by in ["column", 1, "col", "c"]:
         by = "column"
         samples = data.columns.tolist()
-    elif by in ["row", "r", 0,"rows"]:
+    elif by in ["row", "r", 0]:
         by = "row"
         samples = data.index.tolist()
     else:
@@ -689,7 +689,7 @@ def permutational_analysis(data, mapping, column=None, **kwargs):
         # check if indices of provided dataframe are the same as samples
         if set(mapping.index) != set(samples):
             raise AttributeError(
-                "If mapping is a DataFrame, its indices must be equal to samples,('.set_index')")
+                "If mapping is a DataFrame, its indices must be equal to samples,use '.set_index' method")
         sample_group_mapping = dict(zip(mapping.index, mapping[column]))
     elif not mapping:
         # mapping is None, data will be passed as they are
@@ -712,8 +712,13 @@ def permutational_analysis(data, mapping, column=None, **kwargs):
         input_matrix.index = input_matrix.index.map(sample_group_mapping)
 
     # get the distance matrix
-    distance_matrix = convert_to_distance_matrix(
-        input_matrix, metric=metric, norm=norm, by=by)
+    if not is_distance:
+        distance_matrix = convert_to_distance_matrix(input_matrix, metric=metric, norm=norm, by=by)
+    else:
+        distance_matrix = input_matrix.copy()
+    
+
+    distance_matrix = distance_matrix * distance_matrix
 
     # calculate PerMANOVA results
     pvalue, F = perMANOVA(distance_matrix, permutations=permutations)
@@ -725,4 +730,4 @@ def permutational_analysis(data, mapping, column=None, **kwargs):
     # calculate Posthoc results
     posthoc_result = posthoc_perMANOVA(distance_matrix, permutations)
 
-    return(permanova_result, posthoc_result)
+    return permanova_result, posthoc_result
