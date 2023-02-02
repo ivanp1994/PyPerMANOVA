@@ -279,6 +279,8 @@ def calculating_F_stat(grouping, valid_distance, effsize=False):
     """
     # group the distance matrix
     permuted_dismatrix = valid_distance.copy()
+    #square the distance matrix
+    permuted_dismatrix = permuted_dismatrix.values * permuted_dismatrix.values
     permuted_dismatrix.columns = grouping
     permuted_dismatrix.index = grouping
 
